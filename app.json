@@ -1,7 +1,10 @@
 {
   "expo": {
-    "name": "testProji",
-    "slug": "testProji",
+    "name": "Hellas",
+    "slug": "Hellas",
+    "facebookScheme": "fb240997064001051",
+    "facebookAppId": "240997064001051",
+    "facebookDisplayName": "Hellas",
     "platforms": [
       "ios",
       "android",
