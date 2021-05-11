@@ -1,107 +1,155 @@
-import * as Facebook from 'expo-facebook';
-import * as firebase from 'firebase'
-import React from 'react'
-import { Alert, Text, TouchableOpacity, View } from 'react-native'
-import { connect } from 'react-redux'
-import firebaseConfig from '../config/firebase.js'
-import { TabNavigation } from '../navigation/TabNavigation'
+import React, { Component } from 'react';
+import styles from '../styles'
+import TabNavigation from '../navigation/TabNavigation';
+import NewUser from './NewUser';
+import { connect } from 'react-redux';
 import { login } from '../redux/actions'
-import { signInWithFacebook } from '../utils/auth'
+import * as firebase from 'firebase';
+import firebaseConfig from '../config/firebase.js'
 
-firebase.initializeApp(firebaseConfig)
+import { Text, View, TextInput, Button, StyleSheet, TouchableOpacity, Platform } from "react-native";
+import { FirebaseRecaptchaVerifierModal, FirebaseAuthApplicationVerifier } from "expo-firebase-recaptcha";
+firebase.initializeApp(firebaseConfig);
 
 class Login extends React.Component {
-    state = {}
+    state = {
+        recaptchaToken: '',
+        recaptchaVerifier: '',
+        phoneNumber: '',
+        verificationId: null,
+        smsCode: '',
+        message: null
+    }
+    recaptchaVerifier = FirebaseAuthApplicationVerifier;
 
     componentDidMount() {
         firebase.auth().onAuthStateChanged((user) => {
             if (user != null) {
-                this.props.dispatch(login(true))
-                console.log("We are Auth now! " + JSON.stringify(user))
+              this.props.dispatch(login(user))
             }
-        })
+        });
     }
 
-    facebookLogin = async () => {
+    onPressSendVerificationCode = async () => {
+        // Create an application verifier from the reCAPTCHA token
+        const { recaptchaToken } = this.state;
+        if (!recaptchaToken) return;
+        const applicationVerifier = new FirebaseRecaptchaVerifier(recaptchaToken);
+
+        // Start phone autenthication
+        const phoneProvider = new firebase.auth.PhoneAuthProvider();
+        const verificationId = await phoneProvider.verifyPhoneNumber(
+            '+0123456789',
+            applicationVerifier
+        );
+    };
+
+
+    sendVerification = async () => {
+        // The FirebaseRecaptchaVerifierModal ref implements the
+        // FirebaseAuthApplicationVerifier interface and can be
+        // passed directly to `verifyPhoneNumber`.
+
         try {
-            await Facebook.initializeAsync('240997064001051');
-            const { type, token } = await Facebook.logInWithReadPermissionsAsync(
-                "240997064001051",
-                { permission: "public_profile" });
-
-            if (type == "success") {
-                console.log("SUCESSFUL FACEBOOK LOGIN")
-                const credential =
-                    firebase
-                        .auth
-                        .FacebookAuthProvider
-                        .credential(token);
-
-                firebase
-                    .auth().signInWithCredential(credential).catch(error => {
-                        console.log(error);
-                    });
-            }
-        } catch ({ message }) {
-            alert(`Facebook Login Error: ${message}`);
+            const phoneProvider = new firebase.auth.PhoneAuthProvider();
+            const verificationId = await phoneProvider.verifyPhoneNumber(
+            this.state.phoneNumber,
+            this.recaptchaVerifier
+            );
+            this.setState({ verificationId });
+            this.setState({
+            message: "Verification code has been sent to your phone."
+            });
+        } catch (err) {
+            this.setState({ message: `Error: ${err.message}`});
         }
-
-
     }
 
-
-    // facebookLogin = async() => {
-    //     try {
-    //   await Facebook.initializeAsync('240997064001051');
-    //       const {
-    //         type,
-    //         token,
-    //         expires,
-    //         permissions,
-    //         declinedPermissions,
-    //       } = await Facebook.logInWithReadPermissionsAsync('240997064001051', {
-    //         permissions: 'public_profile',
-    //       });
-    //       if (type === 'success') {
-    //         // Get the user's name using Facebook's Graph API
-    //         // const response = await fetch(`https://graph.facebook.com/me?access_token=${token}`);
-    //         // Alert.alert('Logged in!', `Hi ${(await response.json()).name}!`);
-
-    //         const creds = await firebase.auth.FacebookAuthProvider.credential(token)
-    //         firebase.auth().signInWithCredential(creds).catch((err) => {
-    //             Alert.alert("UH oH Sphaget " + err)
-    //         })
-    //       } else {
-    //         // type === 'cancel'
-    //       }
-    //     } catch ({ message }) {
-    //       alert(`Facebook Login Error: ${message}`);
-    //     }
-    //   }
+    verifyCode = async () => {
+        try {
+            const credential = firebase.auth.PhoneAuthProvider.credential(
+            this.state.verificationId,
+            this.state.smsCode
+            );
+            await firebase.auth().signInWithCredential(credential);
+            this.setState({message: "Phone authentication successful 👍" })
+        } catch (err) {
+            this.setState({message: `Error: ${err.message}` })
+        }
+    }
 
 
     render() {
-        if (this.props.loggedIn) {
+        if(this.props.loggedIn && this.props.user.newUser){
             return (
-                <TabNavigation />
+              <NewUser />
             )
-        }
-        else {
+          } 
+          else if (this.props.loggedIn) {
             return (
-                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                    <TouchableOpacity onPress={this.facebookLogin.bind(this)}>
-                        <Text>{this.props.loggedIn}LOG IN</Text>
-                    </TouchableOpacity>
-                </View>
+              <TabNavigation/>
             )
-        }
+          }
+          else {
+            return (
+              <View style={{ padding: 20, marginTop: 50 }}>
+                <FirebaseRecaptchaVerifierModal
+                  firebaseConfig={firebase.app().options}
+                  ref={ref => this.recaptchaVerifier = ref}
+                />
+      
+                <Text>{this.state.message}</Text>
+                <Text style={{ marginTop: 20 }}>Enter phone number</Text>
+                <TextInput
+                  style={{ marginVertical: 10, fontSize: 17 }}
+                  placeholder="+1 999 999 9999"
+                  autoFocus
+                  autoCompleteType="tel"
+                  keyboardType="phone-pad"
+                  textContentType="telephoneNumber"
+                  onChangeText={(phoneNumber) => this.setState({phoneNumber})}
+                />
+      
+                <Button
+                  title="Send Verification Code"
+                  onPress={this.sendVerification}
+                />
+      
+                <Text style={{ marginTop: 20 }}>Enter Verification code</Text>
+                <TextInput
+                  style={{ marginVertical: 10, fontSize: 17 }}
+                  editable={!!this.state.verificationId}
+                  placeholder="123456"
+                  onChangeText={smsCode => this.setState({ smsCode })}
+                />
+      
+                <Button
+                  title="Confirm Verification Code"
+                  disabled={!this.state.verificationId}
+                  onPress={this.verifyCode}
+                />
+      
+              {this.state.message ? (
+                <TouchableOpacity
+                  style={[StyleSheet.absoluteFill, { backgroundColor: 0xffffffee, justifyContent: "center" }]}
+                  onPress={() => this.setState({message: null})}
+                  >
+                  <Text style={{color: "blue", fontSize: 17, textAlign: "center", margin: 20, }}>
+                    {this.state.message}
+                  </Text>
+                </TouchableOpacity>
+              ) : undefined}
+              </View>
+            );
+          }
     }
 }
 
 function mapStateToProps(state) {
     return {
-        loggedIn: state.loggedIn
-    }
-}
+      loggedIn: state.loggedIn,
+      user: state.user
+    };
+  }
 
 export default connect(mapStateToProps)(Login);

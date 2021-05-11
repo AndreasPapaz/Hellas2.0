@@ -1,12 +1,11 @@
 const firebaseConfig = {
-  apiKey: "AIzaSyCla4QJ3PURLUXhN5ke4i1MOMBLtbYzxwg",
-  authDomain: "hellas-cc198.firebaseapp.com",
-  databaseURL: "https://hellas-cc198.firebaseio.com",
-  projectId: "hellas-cc198",
-  storageBucket: "hellas-cc198.appspot.com",
-  messagingSenderId: "350686979623",
-  appId: "1:350686979623:web:ea4fd79b96827486025002",
-  measurementId: "G-PHXKC97DL2"
-}
+  apiKey: "AIzaSyBBhspI8o_PeDVPE1Hi9h9HHsiqcpPeU9w",
+  authDomain: "hellasapp-f9c34.firebaseapp.com",
+  databaseURL: "https://hellasapp-f9c34.firebaseio.com",
+  projectId: "hellasapp-f9c34",
+  storageBucket: "hellasapp-f9c34.appspot.com",
+  messagingSenderId: "858172022745",
+  appId: "1:858172022745:web:fa0d9f4414a013b1"
+};
 
-  module.exports = firebaseConfig
+module.exports = firebaseConfig;
